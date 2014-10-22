@@ -122,5 +122,4 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   
   config.vm.network "private_network", ip: "192.168.50.30", 
   					virtualbox__intnet: "intnet"
-  config.vm.provision :shell, path: "bootstrap.sh"
 end
