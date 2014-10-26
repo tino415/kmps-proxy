@@ -1,19 +1,11 @@
-import socket
-import threading
-import select
-import aspects
-import re
-import copy
-import md5
-import time
+import socket, threading, select, aspects, copy, re, md5, time
 from collections import defaultdict
 
 
-class Server (threading.Thread):
+class Server:
 
     @aspects.controllMessage
     def __init__ (self, ip_address, port):
-        threading.Thread.__init__(self)
         self.socket = socket.socket(socket.AF_INET,
                                     socket.SOCK_DGRAM)
         self.address = "{0}:{1}".format(ip_address,port)
@@ -21,6 +13,14 @@ class Server (threading.Thread):
         self.socket.setblocking(0)
         self.registered = {}
         self.calls = {}
+        self.thread = threading.Thread(target=self.run)
+
+    @aspects.controllMessage
+    def start(self):
+        if not self.thread.isAlive():
+            self.thread = threading.Thread(target=self.run)
+            self.thread.start()
+
 
     @aspects.controllMessage
     def run(self):
@@ -35,6 +35,7 @@ class Server (threading.Thread):
     def stop(self):
         self.running = False   
         print "Server will exist whithin 10 sec"
+        self.thread.join()
 
     @aspects.controllMessage
     def receive_packet(self,data):
