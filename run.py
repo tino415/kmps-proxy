@@ -1,18 +1,19 @@
-import VoIPProxyServer
+import SIP
 
-server = VoIPProxyServer.Server("", 5060)
-
+server = SIP.Server()
 server.start()
+server.clients = {
+	'111' : 1234,
+	'112' : 1234,
+	'113' : 1234
+}
 
 x = "n"
 
 while x != "q":
 
-    if x == "accounts":
-        print server.registered
-
-    if x == "calls":
-        print server.calls
+    if x == "route":
+        print server.route
 
     x = raw_input()
 
