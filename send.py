@@ -1,7 +1,6 @@
 import socket
 
-sock = socket.socket(socket.AF_INET,
-                     socket.SOCK_DGRAM)
+sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 while True:
     sock.sendto(raw_input("Message to send: "), ("127.0.0.1", 5060))

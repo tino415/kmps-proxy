@@ -3,12 +3,16 @@ import SIP
 server = SIP.Server()
 server.start()
 server.clients = {
-	'111' : 1234,
-	'112' : 1234,
-	'113' : 1234
+	'111' : 'pass1',
+	'112' : 'pass1',
+	'113' : 'pass1'
 }
 
 x = "n"
+
+print "*********************************************"
+print "* Python VoIP proxy by Martin Cernak lol lo *"
+print "*********************************************"
 
 while x != "q":
 
