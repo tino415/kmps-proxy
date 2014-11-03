@@ -1,4 +1,4 @@
-import socket, re, threading, select, time, base64, http_digest, decorators, copy
+import socket, re, threading, select, time, base64, http_digest, decorators, copy, md5
 
 def parse_packet(data):
     packet = Packet()
@@ -76,6 +76,10 @@ class Server:
         packet = parse_packet(data)
         reg_pattern = re.compile("REGISTER")
         inv_pattern = re.compile("INVITE")
+        ack_pattern = re.compile("ACK")
+
+        if ack_pattern.match(packet.status):
+            return
 
         if self.auth(packet):
 
@@ -93,6 +97,19 @@ class Server:
     def send_unathorized(self, packet):
         packet.status = "SIP/2.0 401 Unauthorized"
         packet.headers['WWW-Authenticate'] = http_digest.generate(self.name)
+
+        if 'Authorization' in packet.headers:
+            del packet.headers['Authorization']
+
+        self.send(packet, packet.get_return_address())
+
+    def send_not_found(self, packet):
+        packet.status = "SIP/2.0 404 Not Found Call processing released"
+        packet.headers['Reason'] = 'Q.851 ;cause=1 ; text="Unallocated (unassigned) number'
+
+        if 'Authorization' in packet.headers:
+            del packet.headers['Authorization']
+
         self.send(packet, packet.get_return_address())
 
     @decorators.controll_message
@@ -120,19 +137,20 @@ class Server:
     @decorators.controll_message
     def register_action(self, packet):
         packet.status = "SIP/2.0 200 OK"
+        self.route[packet.get_sending_client()] = packet.get_return_address()
         self.send(packet, packet.get_return_address())
 
     def invite_action(self, packet):
         target_user = packet.get_requested_client()
 
         if target_user in self.route:
-            triing = copy.copy(packet)
+            tring = copy.copy(packet)
             packet.via.insert(0, self.get_via())
             self.send(packet, self.route[target_user])
-            triing.status = "SIP/2.0 100 Triyng"
-            self.send(triing, triing.get_return_address())
+            tring.status = "SIP/2.0 100 Triyng"
+            self.send(tring, tring.get_return_address())
         else:
-            print 404
+            self.send_not_found(packet)
 
     def get_via(self):
         return 'SIP/2.0/UDP {0}:{1};branch=z9hG4bK{2}'.format(
@@ -167,7 +185,7 @@ class Packet:
         for header, value in self.headers.items():
             string += "{0}: {1}\n".format(header,value)
 
-        string += "Content-Length: " + str(len(string)) + '\r\n'
+        string += "Content-Length: " + str(len(string)) + '\r\n\r\n'
 
         return string 
 

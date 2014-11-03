@@ -1,3 +1,4 @@
+#!/usr/bin/python
 import SIP
 
 server = SIP.Server()
@@ -17,7 +18,10 @@ print "*********************************************"
 while x != "q":
 
     if x == "route":
-        print server.route
+        print server.route 
+
+	if x == "help":
+		print "route"
 
     x = raw_input()
 
