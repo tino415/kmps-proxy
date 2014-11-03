@@ -140,11 +140,13 @@ class Server:
         self.route[packet.get_sending_client()] = packet.get_return_address()
         self.send(packet, packet.get_return_address())
 
+    @decorators.controll_message
     def invite_action(self, packet):
         target_user = packet.get_requested_client()
 
         if target_user in self.route:
             tring = copy.copy(packet)
+            packet.status = "INVITE sip:{0}@{1} SIP/2.0".format(target_user, self.route[target_user][0])
             packet.via.insert(0, self.get_via())
             self.send(packet, self.route[target_user])
             tring.status = "SIP/2.0 100 Triyng"
