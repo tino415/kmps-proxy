@@ -1,7 +1,8 @@
 #!/usr/bin/python
-import SIP
+import SIP, os
 
 server = SIP.Server()
+server.ip = "192.168.50.30"
 server.start()
 server.clients = {
 	'111' : 'pass1',
@@ -17,12 +18,14 @@ print "*********************************************"
 
 while x != "q":
 
-    if x == "route":
-        print server.route 
-
-	if x == "help":
+	if x == "route":
+		print server.route
+	elif x == "cls":
+		print "clear"
+		os.system('clear')
+	elif x == "help":
 		print "route"
 
-    x = raw_input()
+	x = raw_input()
 
 server.stop()

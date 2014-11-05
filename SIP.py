@@ -2,18 +2,23 @@ import socket, re, threading, select, time, base64, http_digest, decorators, cop
 
 def parse_packet(data):
     packet = Packet()
-    lines = data.split("\n")
-    lines = [line.replace("\r","") for line in lines]
-    packet.status = lines.pop(0)
+    header_pattern = re.compile("([a-zA-Z\-]+): (.+)")
+    via_pattern = re.compile("Via:.+")
+    body_sepparator = re.compile("[\n]{2}")
+    
+    header, packet.body = body_sepparator.split(data.replace("\r", ""), 1)
+    header_lines = header.split("\n")
+    packet.status = header_lines.pop(0)
 
-    packet.via = [via[5:] for via in lines if via[0:4] == "Via:"]
+    
+    while len(header_lines) > 0 and via_pattern.match(header_lines[0]):
+        packet.via.append(header_lines.pop(0).split(": ", 1)[1])
 
-    for header in lines:
-        if len(header.split(": ", 1)) > 1:
-            values = header.split(": ", 1)
-            packet.headers[values[0]] = values[1]
 
-    del packet.headers["Via"], packet.headers["Content-Length"]
+    while len(header_lines) > 0 and header_pattern.match(header_lines[0]):
+        key, value = header_lines.pop(0).split(": ", 1)
+        packet.headers[key] = value
+
     return packet
 
 def parse_address(data):
@@ -40,7 +45,7 @@ class Server:
 
     port = 5060
 
-    ip_address = ''
+    ip = ''
 
     name = "python.server.sip"
 
@@ -53,7 +58,7 @@ class Server:
     @decorators.controll_message
     def start(self):
         self.thread = threading.Thread(target = self.run)
-        self.socket.bind((self.ip_address, self.port))
+        self.socket.bind((self.ip, self.port))
         self.thread.start()
 
     @decorators.controll_message
@@ -143,6 +148,7 @@ class Server:
     @decorators.controll_message
     def invite_action(self, packet):
         target_user = packet.get_requested_client()
+        print("INVITE: requested user{}\n".format(target_user))
 
         if target_user in self.route:
             tring = copy.copy(packet)
@@ -156,14 +162,14 @@ class Server:
 
     def get_via(self):
         return 'SIP/2.0/UDP {0}:{1};branch=z9hG4bK{2}'.format(
-            self.ip_address,
+            self.ip,
             self.port,
             base64.b64encode(md5.new(str(time.time())).digest())
         )
 
     @decorators.controll_message
     def get_address(self):
-        string = self.ip_address
+        string = self.ip
 
         if self.port is not None:
             string += ":{0}".format(self.port)
@@ -174,10 +180,11 @@ class Packet:
 
     URI_PATTERN = re.compile("<sip:([a-zA-Z0-9]+)@[0-9a-zA-Z:\.]+>")
 
-    def __init__(self, headers = {}, via = [], status = False):
+    def __init__(self, headers = {}, via = [], body = "" , status = False):
         self.headers = headers
         self.via = via
         self.status = status
+        self.body = body
 
     def __str__(self):
         string = self.status + "\n"
@@ -188,6 +195,8 @@ class Packet:
             string += "{0}: {1}\n".format(header,value)
 
         string += "Content-Length: " + str(len(string)) + '\r\n\r\n'
+
+        string += self.body + '\r\n\r\n'
 
         return string 
 
