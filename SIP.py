@@ -1,23 +1,34 @@
 import socket, re, threading, select, time, base64, http_digest, decorators, copy, md5
 
 def parse_packet(data):
-    packet = Packet()
+    packet = Packet(via = [])
     header_pattern = re.compile("([a-zA-Z\-]+): (.+)")
     via_pattern = re.compile("Via:.+")
     body_sepparator = re.compile("[\n]{2}")
+
+    print "Parsing\n"
+    print packet.via;
+
     
     header, packet.body = body_sepparator.split(data.replace("\r", ""), 1)
     header_lines = header.split("\n")
     packet.status = header_lines.pop(0)
 
+    print "Parsing\n"
+    print packet.via;
     
     while len(header_lines) > 0 and via_pattern.match(header_lines[0]):
         packet.via.append(header_lines.pop(0).split(": ", 1)[1])
 
+    print "Parsing\n"
+    print packet.via;
 
     while len(header_lines) > 0 and header_pattern.match(header_lines[0]):
         key, value = header_lines.pop(0).split(": ", 1)
         packet.headers[key] = value
+
+    print "Parsing\n"
+    print packet.via;
 
     return packet
 
@@ -81,6 +92,7 @@ class Server:
         packet = parse_packet(data)
         reg_pattern = re.compile("REGISTER")
         inv_pattern = re.compile("INVITE")
+        res_pattern = re.compile("(180|CENCEL)")
         ack_pattern = re.compile("ACK")
 
         if ack_pattern.match(packet.status):
@@ -92,6 +104,8 @@ class Server:
                 self.register_action(packet)
             elif inv_pattern.match(packet.status):
                 self.invite_action(packet)
+            elif res_pattern.match(packet.status):
+                self.resend(packet)
 
     @decorators.controll_message
     def send(self, packet, address):
@@ -142,29 +156,43 @@ class Server:
     @decorators.controll_message
     def register_action(self, packet):
         packet.status = "SIP/2.0 200 OK"
+
+        if 'Authorization' in packet.headers:
+            del packet.headers["Authorization"]
+        if 'WWW-Authenticate' in packet.headers:
+            del packet.headers['WWW-Authenticate']
+
         self.route[packet.get_sending_client()] = packet.get_return_address()
         self.send(packet, packet.get_return_address())
 
     @decorators.controll_message
     def invite_action(self, packet):
         target_user = packet.get_requested_client()
-        print("INVITE: requested user{}\n".format(target_user))
 
         if target_user in self.route:
-            tring = copy.copy(packet)
+            packet.status = "SIP/2.0 100 Triyng"
+            self.send(packet, packet.get_return_address())
             packet.status = "INVITE sip:{0}@{1} SIP/2.0".format(target_user, self.route[target_user][0])
             packet.via.insert(0, self.get_via())
+            packet.headers['Route'] = "<sip:{};lt>".format(self.get_address())
             self.send(packet, self.route[target_user])
-            tring.status = "SIP/2.0 100 Triyng"
-            self.send(tring, tring.get_return_address())
         else:
             self.send_not_found(packet)
+
+    @decorators.controll_message
+    def resend(self, packet):
+        target_user = packet.get_requested_client()       
+
+        if target_user in self.route:
+            self.send(packet, self.route[target_user])
+        else:
+            self.send_not_found(packet);
 
     def get_via(self):
         return 'SIP/2.0/UDP {0}:{1};branch=z9hG4bK{2}'.format(
             self.ip,
             self.port,
-            base64.b64encode(md5.new(str(time.time())).digest())
+            md5.new(str(time.time())).hexdigest()
         )
 
     @decorators.controll_message
@@ -189,14 +217,17 @@ class Packet:
     def __str__(self):
         string = self.status + "\n"
         for via in self.via:
+            print "Via found\n"
             string += "Via: {0}\n".format(via)
 
         for header, value in self.headers.items():
-            string += "{0}: {1}\n".format(header,value)
+            if header != "Content-Length" and header != "Via":
+                string += "{0}: {1}\n".format(header,value)
 
         string += "Content-Length: " + str(len(string)) + '\r\n\r\n'
 
-        string += self.body + '\r\n\r\n'
+        if(len(self.body) > 0):
+            string += self.body + '\r\n\r\n'
 
         return string 
 
