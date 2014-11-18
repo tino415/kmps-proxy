@@ -1,50 +1,26 @@
 import socket, re, threading, select, time, base64, http_digest, decorators, copy, md5
 
+header_pattern = re.compile("([a-zA-Z\-]+): (.+)")
+
+via_pattern = re.compile("Via:.+")
+
+body_sepparator = re.compile("[\n]{2}")
+
 def parse_packet(data):
-    packet = Packet(via = [])
-    header_pattern = re.compile("([a-zA-Z\-]+): (.+)")
-    via_pattern = re.compile("Via:.+")
-    body_sepparator = re.compile("[\n]{2}")
+    packet = Packet(via = [], headers = {})
 
-    print "Parsing\n"
-    print packet.via;
-
-    
     header, packet.body = body_sepparator.split(data.replace("\r", ""), 1)
     header_lines = header.split("\n")
     packet.status = header_lines.pop(0)
 
-    print "Parsing\n"
-    print packet.via;
-    
     while len(header_lines) > 0 and via_pattern.match(header_lines[0]):
         packet.via.append(header_lines.pop(0).split(": ", 1)[1])
-
-    print "Parsing\n"
-    print packet.via;
 
     while len(header_lines) > 0 and header_pattern.match(header_lines[0]):
         key, value = header_lines.pop(0).split(": ", 1)
         packet.headers[key] = value
 
-    print "Parsing\n"
-    print packet.via;
-
     return packet
-
-def parse_address(data):
-    REGEX_PARSE = (
-        "<sip:([0-9a-zA-Z]+)@([a-z.]+|[0-9.]+):?([0-9]+){0,1}>"
-    )
-
-    elements = re.search(REGEX_PARSE, data).groups()
-    return Uri(account = elements[0],
-                    address = elements[1],
-                    port = elements[2])
-
-def parse_via(via_string):
-    via_elements = via_content.split(";")
-    return dict( element.split("=") for element in via_elements )
 
 class Server:
     
@@ -54,65 +30,73 @@ class Server:
 
     receive_wait = 4
 
-    port = 5060
-
+    port = 5060 
     ip = ''
 
     name = "python.server.sip"
 
     running = False
 
-    @decorators.controll_message
     def __init__(self):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-    @decorators.controll_message
+    @decorators.start
     def start(self):
         self.thread = threading.Thread(target = self.run)
         self.socket.bind((self.ip, self.port))
         self.thread.start()
 
-    @decorators.controll_message
     def run(self):
         self.running = True
         while self.running:
             self.ready = select.select([self.socket], [], [], self.receive_wait)
             if self.ready[0]:
                 data, address = self.socket.recvfrom(1024)
-                self.receive(data)
+                self.receive(data, address)
                 
-    @decorators.controll_message
+    @decorators.stop
     def stop(self):
         self.running = False
         self.thread.join()
         self.socket.close()
 
-    @decorators.controll_message
-    def receive(self, data):
-        packet = parse_packet(data)
+    @decorators.receive
+    def receive(self, data, address):
+        packet = parse_packet(data) 
         reg_pattern = re.compile("REGISTER")
         inv_pattern = re.compile("INVITE")
-        res_pattern = re.compile("(180|CENCEL)")
+        rin_pattern = re.compile(".+Ringing.*")
+        cnc_pattern = re.compile("CANCEL.*")
         ack_pattern = re.compile("ACK")
+        dec_pattern = re.compile(".*Decline")
+        ok_pattern = re.compile(".*OK")
+        bye_pattern = re.compile("BYE")
 
         if ack_pattern.match(packet.status):
             return
+        elif cnc_pattern.match(packet.status):
+            self.cancel(packet)
+        elif dec_pattern.match(packet.status):
+            self.decline(packet)
 
         if self.auth(packet):
-
             if reg_pattern.match(packet.status):
-                self.register_action(packet)
+                self.register(packet)
             elif inv_pattern.match(packet.status):
-                self.invite_action(packet)
-            elif res_pattern.match(packet.status):
-                self.resend(packet)
+                self.invite(packet)
+            elif rin_pattern.match(packet.status):
+                self.ringing(packet)
+            elif ok_pattern.match(packet.status):
+                self.answer(packet)
+            elif bye_pattern.match(packet.status):
+                self.bye(packet)
+            else:
+                return False
 
-    @decorators.controll_message
+    @decorators.send
     def send(self, packet, address):
-        print str(packet)
         self.socket.sendto(str(packet), address)
 
-    @decorators.controll_message
     def send_unathorized(self, packet):
         packet.status = "SIP/2.0 401 Unauthorized"
         packet.headers['WWW-Authenticate'] = http_digest.generate(self.name)
@@ -131,7 +115,15 @@ class Server:
 
         self.send(packet, packet.get_return_address())
 
-    @decorators.controll_message
+    def send_ack(self, packet):
+        target_user = packet.get_sending_client()
+        packet.status = "ACK sip:{}@{} SIP/2.0".format(
+            target_user,
+            self.ip
+        )
+        self.send(packet, self.route[packet.get_requested_client()])
+
+    @decorators.auth
     def auth(self, packet):
         if not packet.get_sending_client() in self.route:   
             if "Authorization" in packet.headers:
@@ -153,8 +145,8 @@ class Server:
         else:
             return True
 
-    @decorators.controll_message
-    def register_action(self, packet):
+    @decorators.register
+    def register(self, packet):
         packet.status = "SIP/2.0 200 OK"
 
         if 'Authorization' in packet.headers:
@@ -165,35 +157,76 @@ class Server:
         self.route[packet.get_sending_client()] = packet.get_return_address()
         self.send(packet, packet.get_return_address())
 
-    @decorators.controll_message
-    def invite_action(self, packet):
+    @decorators.invite
+    def invite(self, packet):
         target_user = packet.get_requested_client()
 
         if target_user in self.route:
             packet.status = "SIP/2.0 100 Triyng"
             self.send(packet, packet.get_return_address())
             packet.status = "INVITE sip:{0}@{1} SIP/2.0".format(target_user, self.route[target_user][0])
-            packet.via.insert(0, self.get_via())
+            packet.via.insert(0, self.get_via(packet))
+            packet.headers['Record-Route'] = "<sip:{};lt>".format(self.get_address())
+            self.send(packet, self.route[target_user])
+        else:
+            self.send_not_found(packet)
+
+    def ringing(self, packet):
+        if self.valid_via(packet):
+            self.send(packet, packet.get_return_address())
+
+    def cancel(self, packet):
+        target_user = packet.get_requested_client()
+        sending_user = packet.get_sending_client()
+
+        if target_user in self.route:
+            packet.status = "CANCEL sip:{}@{} SIP/2.0".format(sending_user, self.route[sending_user][0])
+            packet.via.insert(0, self.get_via(packet))
             packet.headers['Route'] = "<sip:{};lt>".format(self.get_address())
             self.send(packet, self.route[target_user])
         else:
             self.send_not_found(packet)
 
-    @decorators.controll_message
-    def resend(self, packet):
-        target_user = packet.get_requested_client()       
+    def decline(self, packet):
+        if self.valid_via(packet):
+            self.send(packet, packet.get_return_address())
+            self.send_ack(packet)
 
+    def answer(self, packet):
+        if self.valid_via(packet):
+            self.send(packet, packet.get_return_address())
+
+    def bye(self, packet):
+        target_user = packet.get_requested_client()
         if target_user in self.route:
+            packet.status = "BYE sip:{}@{} SIP/2.0".format(
+                target_user,
+                self.route[target_user][0]
+            )
             self.send(packet, self.route[target_user])
-        else:
-            self.send_not_found(packet);
 
-    def get_via(self):
+    def get_via(self,packet):
+        nonce = '{}:{}:{}'.format(
+            packet.get_sending_client(),
+            packet.get_requested_client(),
+            packet.headers['Call-ID']
+        )
         return 'SIP/2.0/UDP {0}:{1};branch=z9hG4bK{2}'.format(
             self.ip,
             self.port,
-            md5.new(str(time.time())).hexdigest()
+            md5.new(nonce).hexdigest()
         )
+
+    def valid_via(self, packet):
+        ret_addr = packet.get_return_address()
+
+        if ret_addr[0] == self.ip and ret_addr[1] == self.port:
+            packet.via.pop(0)
+            if len(packet.via) == 0: return False
+            else: return True
+
+        else: return True
+
 
     @decorators.controll_message
     def get_address(self):
@@ -217,7 +250,6 @@ class Packet:
     def __str__(self):
         string = self.status + "\n"
         for via in self.via:
-            print "Via found\n"
             string += "Via: {0}\n".format(via)
 
         for header, value in self.headers.items():
@@ -253,4 +285,7 @@ class Packet:
         return self.URI_PATTERN.search(self.headers['To']).groups()[0]
         
     def get_sending_client(self):
-        return self.URI_PATTERN.search(self.headers['Contact']).groups()[0]
+        if 'Contact' in self.headers:
+            return self.URI_PATTERN.search(self.headers['Contact']).groups()[0]
+        else:
+            return self.URI_PATTERN.search(self.headers['From']).groups()[0]

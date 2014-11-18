@@ -20,7 +20,6 @@ def is_valid(password, digest, method):
 	sh1 = md5.new('{}:{}:{}'.format(digest['username'], digest['realm'], password)).hexdigest()
 	sh2 = md5.new('{}:{}'.format(method, digest['uri'])).hexdigest()
 	response = md5.new('{}:{}:{}'.format(sh1, digest['nonce'], sh2)).hexdigest()
-	print response
 	return digest['response'] == response
 
 @decorators.controll_message
