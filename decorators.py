@@ -7,9 +7,9 @@ logger = logging.getLogger('sip_proxy')
 def controll_message(function):
 
 	def wrapper(*args, **kwargs):
-		logger.info( "\n[{0}]:\nargs:\n{1}\nkwarg:\n{2}\n".format(function.__name__, args, kwargs)
+		logger.info( "\n[{0}]:\nargs:\n{1}\nkwarg:\n{2}\n".format(function.__name__, args, kwargs))
 		result = function(*args, **kwargs)
-		logger.info( result
+		logger.info(result)
 		return result
 	
 	return wrapper
