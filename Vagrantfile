@@ -120,6 +120,6 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   #
   #   chef.validation_client_name = "ORGNAME-validator"
   
-  config.vm.network "private_network", ip: "192.168.50.30", 
-  					virtualbox__intnet: "intnet"
+  config.vm.network "private_network", ip: "192.168.50.30", virtualbox__intnet: "intnet"
+  config.vm.provision :shell, path: "bootstrap.sh"
 end
