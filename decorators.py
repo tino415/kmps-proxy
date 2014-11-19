@@ -1,8 +1,12 @@
 import re, logging
 
-packet_status_filter = re.compile(".+");
-
 logger = logging.getLogger('sip_proxy')
+logger.setLevel(logging.DEBUG)
+cli = logging.StreamHandler()
+cli.setLevel(logging.DEBUG)
+formatter = logging.Formatter("[%(asctime)s %(levelname)s] : %(message)s")
+cli.setFormatter(formatter)
+logger.addHandler(cli)
 
 def controll_message(function):
 

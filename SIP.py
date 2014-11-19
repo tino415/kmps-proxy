@@ -31,19 +31,18 @@ class Server:
     receive_wait = 4
 
     port = 5060 
+
     ip = ''
 
     name = "python.server.sip"
 
     running = False
 
-    def __init__(self):
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-
     @decorators.start
     def start(self):
         self.thread = threading.Thread(target = self.run)
-        self.socket.bind((self.ip, self.port))
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.socket.bind((self.ip, int(self.port)))
         self.thread.start()
 
     def run(self):
