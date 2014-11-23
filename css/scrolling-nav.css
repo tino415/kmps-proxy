@@ -37,6 +37,10 @@ section {
     text-align: center;
 }
 
+section table tr td{
+	text-align:left;
+}
+
 .users-section {
     background: #eee;
 }

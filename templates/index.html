@@ -50,6 +50,9 @@
                     <li>
                         <a class="page-scroll" href="#users">Users</a>
                     </li>
+					<li>
+                        <a class="page-scroll" href="#settings">Settings</a>
+					</li>
                     <li>
                         <a class="page-scroll" href="#packets">Packets</a>
                     </li>
@@ -81,7 +84,22 @@
 									</button>
 								</td>
 						</tr>
+						<tr>
+						        <td>112</td>
+						        <td></td>
+						        <td>
+									<button class="btn btn-danger">
+										<span class="glyphicon glyphicon-remove"></span>
+									</button>
+								</td>
+						</tr>
 					</table>
+
+						<a class="page-scroll" href="#add-users">
+					<button class="btn btn-success">
+						<span class="glyphicon glyphicon-plus"></span>
+					</button>
+						</a>
                 </div>
             </div>
         </div>
@@ -92,6 +110,69 @@
             <div class="row">
                 <div class="col-lg-12">
                     <h1>Add Users</h1>
+					<form class="form-horizontal" role="form">
+					    <div class="form-group">
+					         <label class="col-sm-2 control-label">Account:</label>
+
+					         <div class="col-sm-10">
+					          <input class="form-control" type="text" placeholder="User">
+					         </div>
+					    </div>
+
+					    <div class="form-group">
+					       <label class="col-sm-2 control-label">Password:</label>
+
+					       <div class="col-sm-10">
+					       <input class="form-control" type="password" placeholder="Password">
+					       </div>
+					    </div>
+
+					    <div class="form-group">
+					       <label class="col-sm-2 control-label">Password 2:</label>
+
+					       <div class="col-sm-10">
+					       <input class="form-control" type="password" placeholder="Password">
+					       </div>
+					    </div>
+
+						<button class="btn btn-success">
+						<span class="glyphicon glyphicon-plus"></span>
+						Add
+						</button>
+					</form>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="settings" class="settings-section">
+        <div class="container">
+            <div class="row">
+                <div class="col-lg-12">
+                    <h1>Settings</h1>
+					<form class="form form-horizontal" role="form">
+					    <div class="form-group">
+					       <label class="col-sm-2 control-label">Port:</label>
+					       <div class="col-sm-10">
+						   <input class="form-control" type="number">
+						   </div>
+					    </div>
+					    <div class="form-group">
+					       <label class="col-sm-2 control-label">IP:</label>
+					       <div class="col-sm-10">
+						   <input class="form-control" type="text">
+						   </div>
+					    </div>
+					    <div class="form-group">
+					       <label class="col-sm-2 control-label">Server name:</label>
+					       <div class="col-sm-10">
+						   <input class="form-control" type="text">
+						   </div>
+					    </div>
+					</form>
+					<button class="btn">
+						<span class="glyphicon glyphicon-save"></span> Save
+					</button>
                 </div>
             </div>
         </div>
@@ -104,6 +185,7 @@
                 <div class="col-lg-12">
                     <h1>Packets Section</h1>
                 </div>
+				<div class="col-lg-12"><hr></div>
             </div>
         </div>
     </section>
