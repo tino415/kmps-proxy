@@ -10,7 +10,23 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   # please see the online documentation at vagrantup.com.
 
   # Every Vagrant virtual environment requires a box to build off of.
-  config.vm.box = "ubuntu/trusty64"
+
+config.vm.define "server" do |server|
+    server.vm.provision :shell, path: "bootstrap.sh"
+    server.vm.network "private_network", ip: "192.168.50.30", virtualbox__intnet: "intnet"
+    server.vm.box = "ubuntu/trusty64"
+end
+
+#config.vm.define "test_phone_1" do |test_phone_1|
+#   test_phone_1.vm.box = "elementary/luna"
+#   test_phone_1.vm.network "private_network", ip: "192.168.50.11", virtualbox__intnet: "sip_net"
+#end
+#
+#config.vm.define "test_phone_2" do |test_phone_2|
+#   test_phone_2.vm.box = "elementary/luna"
+#   test_phone_2.vm.network "private_network", ip: "192.168.50.12", virtualbox__intnet: "sip_net"
+#end
+
 
   # Disable automatic box update checking. If you disable this, then
   # boxes will only be checked for updates when the user runs
@@ -120,6 +136,4 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   #
   #   chef.validation_client_name = "ORGNAME-validator"
   
-  config.vm.network "private_network", ip: "192.168.50.30", virtualbox__intnet: "intnet"
-  config.vm.provision :shell, path: "bootstrap.sh"
 end

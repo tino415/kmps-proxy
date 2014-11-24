@@ -1,10 +1,13 @@
 import socket, re, threading, select, time, base64, http_digest, decorators, copy, md5
 
-header_pattern = re.compile("([a-zA-Z\-]+): (.+)")
+header_pattern = re.compile(r"([a-zA-Z\-]+): (.+)")
 
-via_pattern = re.compile("Via:.+")
+via_pattern = re.compile(r"Via:.+")
 
-body_sepparator = re.compile("[\n]{2}")
+body_sepparator = re.compile(r"[\n]{2}")
+
+RECEIVED = 0
+SENDED = 1
 
 def parse_packet(data):
     packet = Packet(via = [], headers = {})
@@ -23,20 +26,18 @@ def parse_packet(data):
     return packet
 
 class Server:
-    
-    clients = {}
+    def __init__(self, port, ip, name,
+        clients = {}, route = {}, receive_wait = 4, running = False,
+        packet_handler = None):
 
-    route = {}
-
-    receive_wait = 4
-
-    port = 5060 
-
-    ip = ''
-
-    name = "python.server.sip"
-
-    running = False
+        self.port = port
+        self.ip = ip
+        self.name = name
+        self.clients = clients
+        self.route =    route
+        self.receive_wait = receive_wait
+        self.ronning = False
+        self.packet_handler = packet_handler
 
     @decorators.start
     def start(self):
@@ -52,16 +53,23 @@ class Server:
             if self.ready[0]:
                 data, address = self.socket.recvfrom(1024)
                 self.receive(data, address)
-                
+
     @decorators.stop
     def stop(self):
         self.running = False
         self.thread.join()
         self.socket.close()
 
+    def packet_handle(self, received_sended, packet):
+        if self.packet_handler != None:
+            if received_sended == RECEIVED:
+                self.packet_handler.received(packet)
+            elif received_sended == SENDED:
+                self.packet_handler.sended(packet)
+
     @decorators.receive
     def receive(self, data, address):
-        packet = parse_packet(data) 
+        packet = parse_packet(data)
         reg_pattern = re.compile("REGISTER")
         inv_pattern = re.compile("INVITE")
         rin_pattern = re.compile(".+Ringing.*")
@@ -107,7 +115,8 @@ class Server:
 
     def send_not_found(self, packet):
         packet.status = "SIP/2.0 404 Not Found Call processing released"
-        packet.headers['Reason'] = 'Q.851 ;cause=1 ; text="Unallocated (unassigned) number'
+        packet.headers['Reason'] = (
+            'Q.851 ;cause=1 ; text="Unallocated (unassigned) number')
 
         if 'Authorization' in packet.headers:
             del packet.headers['Authorization']
@@ -124,7 +133,7 @@ class Server:
 
     @decorators.auth
     def auth(self, packet):
-        if not packet.get_sending_client() in self.route:   
+        if not packet.get_sending_client() in self.route:
             if "Authorization" in packet.headers:
                 digest = http_digest.parse(packet.headers['Authorization'])
                 if not digest['username'] in self.clients:
@@ -132,12 +141,12 @@ class Server:
                     return False
 
                 password = self.clients[digest['username']]
-                if not http_digest.is_valid(password, digest, packet.get_tr_method()):
+                if not http_digest.is_valid(
+                    password, digest, packet.get_tr_method()):
                     self.send_unathorized(packet)
                     return False
 
                 return True
-
             else:
                 self.send_unathorized(packet)
                 return False
@@ -163,9 +172,11 @@ class Server:
         if target_user in self.route:
             packet.status = "SIP/2.0 100 Triyng"
             self.send(packet, packet.get_return_address())
-            packet.status = "INVITE sip:{0}@{1} SIP/2.0".format(target_user, self.route[target_user][0])
+            packet.status = "INVITE sip:{0}@{1} SIP/2.0".format(
+                target_user, self.route[target_user][0])
             packet.via.insert(0, self.get_via(packet))
-            packet.headers['Record-Route'] = "<sip:{};lt>".format(self.get_address())
+            packet.headers['Record-Route'] = "<sip:{};lt>".format(
+                self.get_address())
             self.send(packet, self.route[target_user])
         else:
             self.send_not_found(packet)
@@ -179,7 +190,8 @@ class Server:
         sending_user = packet.get_sending_client()
 
         if target_user in self.route:
-            packet.status = "CANCEL sip:{}@{} SIP/2.0".format(sending_user, self.route[sending_user][0])
+            packet.status = "CANCEL sip:{}@{} SIP/2.0".format(
+                sending_user, self.route[sending_user][0])
             packet.via.insert(0, self.get_via(packet))
             packet.headers['Route'] = "<sip:{};lt>".format(self.get_address())
             self.send(packet, self.route[target_user])
@@ -238,7 +250,7 @@ class Server:
 
 class Packet:
 
-    URI_PATTERN = re.compile("<sip:([a-zA-Z0-9]+)@[0-9a-zA-Z:\.]+>")
+    URI_PATTERN = re.compile(r"<sip:([a-zA-Z0-9]+)@[0-9a-zA-Z:\.]+>")
 
     def __init__(self, headers = {}, via = [], body = "" , status = False):
         self.headers = headers
@@ -257,10 +269,10 @@ class Packet:
 
         string += "Content-Length: " + str(len(string)) + '\r\n\r\n'
 
-        if(len(self.body) > 0):
+        if len(self.body) > 0:
             string += self.body + '\r\n\r\n'
 
-        return string 
+        return string
 
     def get_tr_method(self):
         return self.headers["CSeq"].split(" ")[1]
@@ -282,7 +294,7 @@ class Packet:
 
     def get_requested_client(self):
         return self.URI_PATTERN.search(self.headers['To']).groups()[0]
-        
+
     def get_sending_client(self):
         if 'Contact' in self.headers:
             return self.URI_PATTERN.search(self.headers['Contact']).groups()[0]

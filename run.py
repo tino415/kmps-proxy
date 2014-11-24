@@ -1,31 +1,35 @@
 #!/usr/bin/python
-import SIP, os
+""" CLI interface for sip proxy"""
+import os
 
-server = SIP.Server()
-server.ip = "192.168.50.30"
-server.start()
-server.clients = {
-	'111' : 'pass1',
-	'112' : 'pass1',
-	'113' : 'pass1'
-}
+def run(SERVER):
+    print "*********************************************"
+    print "* Python VoIP proxy by Martin Cernak lol lo *"
+    print "*********************************************"
+    x = ''
+    while x != "q":
+        if x == "route":
+            print SERVER.route
+        elif x == "cls":
+            print "clear"
+            os.system('clear')
+        elif x == "help":
+            print "route"
+        elif x == "stop":
+            SERVER.stop()
+        elif x == "start":
+            SERVER.start()
+        elif x == "clients":
+            print SERVER.clients
 
-x = "n"
+    x = raw_input()
 
-print "*********************************************"
-print "* Python VoIP proxy by Martin Cernak lol lo *"
-print "*********************************************"
-
-while x != "q":
-
-	if x == "route":
-		print server.route
-	elif x == "cls":
-		print "clear"
-		os.system('clear')
-	elif x == "help":
-		print "route"
-
-	x = raw_input()
-
-server.stop()
+if __name__ == "__main__":
+    import SIP
+    SERVER = SIP.Server(port=5061, name="sip.base.SERVER", ip="192.168.50.30")
+    SERVER.start()
+    SERVER.clients = {
+        '111' : 'pass',
+        '112' : 'pass',
+    }
+    run(SERVER)

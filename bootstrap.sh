@@ -1,4 +1,5 @@
-#!/usr/bin/python
+#!/bin/bash
 
-apt-get install python-pip
+apt-get update
+apt-get install -y python-pip
 pip install web.py
