@@ -14,6 +14,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 config.vm.define "server" do |server|
     server.vm.provision :shell, path: "bootstrap.sh"
     server.vm.network "private_network", ip: "192.168.50.30", virtualbox__intnet: "intnet"
+    server.vm.network "forwarded_port", host: 8080, guest: 8080
     server.vm.box = "ubuntu/trusty64"
 end
 

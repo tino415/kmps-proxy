@@ -21,8 +21,7 @@ def run(SERVER):
             SERVER.start()
         elif x == "clients":
             print SERVER.clients
-
-    x = raw_input()
+        x = raw_input()
 
 if __name__ == "__main__":
     import SIP
@@ -33,3 +32,4 @@ if __name__ == "__main__":
         '112' : 'pass',
     }
     run(SERVER)
+    SERVER.stop()

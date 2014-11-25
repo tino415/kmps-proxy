@@ -28,7 +28,7 @@ def parse_packet(data):
 class Server:
     def __init__(self, port, ip, name,
         clients = {}, route = {}, receive_wait = 4, running = False,
-        packet_handler = None):
+        packet_handler = False):
 
         self.port = port
         self.ip = ip
@@ -41,10 +41,15 @@ class Server:
 
     @decorators.start
     def start(self):
+        print "Thread running1"
         self.thread = threading.Thread(target = self.run)
+        print "Thread running2"
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        print "Thread running3"
         self.socket.bind((self.ip, int(self.port)))
+        print "Thread running4"
         self.thread.start()
+        print "Thread running5"
 
     def run(self):
         self.running = True
@@ -60,16 +65,10 @@ class Server:
         self.thread.join()
         self.socket.close()
 
-    def packet_handle(self, received_sended, packet):
-        if self.packet_handler != None:
-            if received_sended == RECEIVED:
-                self.packet_handler.received(packet)
-            elif received_sended == SENDED:
-                self.packet_handler.sended(packet)
-
     @decorators.receive
     def receive(self, data, address):
         packet = parse_packet(data)
+        if self.packet_handler: self.packet_handler.add(packet)
         reg_pattern = re.compile("REGISTER")
         inv_pattern = re.compile("INVITE")
         rin_pattern = re.compile(".+Ringing.*")
@@ -102,6 +101,7 @@ class Server:
 
     @decorators.send
     def send(self, packet, address):
+        if self.packet_handler: self.packet_handler.add(packet)
         self.socket.sendto(str(packet), address)
 
     def send_unathorized(self, packet):
