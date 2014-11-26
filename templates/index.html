@@ -55,7 +55,7 @@ $def with (log, users, registered, port, ip, name)
                         <a class="page-scroll" href="#settings">Settings</a>
                     </li>
                     <li>
-                        <a class="page-scroll" href="#log">Packets</a>
+                        <a class="page-scroll" href="#log">Log</a>
                     </li>
                 </ul>
             </div>
@@ -177,7 +177,7 @@ $def with (log, users, registered, port, ip, name)
             <div class="row">
                 <div class="col-lg-12">
                     <h1>Log Section</h1>
-                    <textarea id="log" style="width:100%;height:500px" readonly>
+                    <textarea id="log_content" style="width:100%;height:500px" readonly>
                         $log
                     </textarea>
                 </div>
@@ -205,18 +205,30 @@ $def with (log, users, registered, port, ip, name)
             port: $$('#port').val(),
             name: $$('#server_name').val(),
             ip: $$('#ip').val()
+        }).done(function(data) {
+            alert("Config changed");
+            location.reload();
         })
     }
-    function delete_user(name) {$$.post("delete_user", { name: name})}
+    function delete_user(name) {$$.post("delete_user", { name: name}).done(function(data) {
+        location.reload();
+    })}
     function add_user() {
-        $$.post("add_user", {
-            name: $$('#user_name').val(),
-            password: $$('#user_pass').val()
-        })
+        if($$('#user_pass').val() != $$('#user_pass2').val()) {
+            alert("Passwords are not same");
+        } else {
+            $$.post("add_user", {
+                name: $$('#user_name').val(),
+                password: $$('#user_pass').val()
+            }).done(function(data) {
+                alert("User added");
+                location.reload();
+            })
+        }
     }
     function get_log() {
         $$.post("get_log", function(log) {
-            $$('#log').html(log)
+            $$('#log_content').html(log);
         })
     }
     </script>

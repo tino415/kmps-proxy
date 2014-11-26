@@ -1,4 +1,4 @@
-port = 5062
+port = 5063
 ip = "192.168.50.30"
 server_name = "test.sip.local"
 packet_buff = 40
