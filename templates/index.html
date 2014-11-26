@@ -1,4 +1,4 @@
-$def with (packets, users, registered, port, ip, name)
+$def with (log, users, registered, port, ip, name)
 <!DOCTYPE html>
 <html lang="en">
 
@@ -10,7 +10,7 @@ $def with (packets, users, registered, port, ip, name)
     <meta name="description" content="">
     <meta name="author" content="">
 
-    <title>Scrolling Nav - Start Bootstrap Template</title>
+    <title>KMPS - SIP proxy</title>
 
     <!-- Bootstrap Core CSS -->
     <link href="css/bootstrap.min.css" rel="stylesheet">
@@ -41,7 +41,7 @@ $def with (packets, users, registered, port, ip, name)
                     <span class="icon-bar"></span>
                     <span class="icon-bar"></span>
                 </button>
-                <a class="navbar-brand page-scroll" href="#page-top">Start Bootstrap</a>
+                <a class="navbar-brand page-scroll" href="#page-top">SIP Proxy</a>
             </div>
 
             <!-- Collect the nav links, forms, and other content for toggling -->
@@ -55,7 +55,7 @@ $def with (packets, users, registered, port, ip, name)
                         <a class="page-scroll" href="#settings">Settings</a>
                     </li>
                     <li>
-                        <a class="page-scroll" href="#packets">Packets</a>
+                        <a class="page-scroll" href="#log">Packets</a>
                     </li>
                 </ul>
             </div>
@@ -84,7 +84,7 @@ $def with (packets, users, registered, port, ip, name)
                                 $else:
                                     <td></td>
                                 <td>
-                                    <button class="btn btn-danger">
+                                    <button class="btn btn-danger" onclick="delete_user('$user')">
                                         <span class="glyphicon glyphicon-remove"></span>
                                     </button>
                                 </td>
@@ -108,32 +108,28 @@ $def with (packets, users, registered, port, ip, name)
                     <h1>Add Users</h1>
                     <form class="form-horizontal" role="form">
                         <div class="form-group">
-                             <label class="col-sm-2 control-label">Account:</label>
-
-                             <div class="col-sm-10">
-                              <input class="form-control" type="text" placeholder="User">
-                             </div>
+                            <label class="col-sm-2 control-label">Account:</label>
+                            <div class="col-sm-10">
+                                <input id="user_name" class="form-control" 
+                                    type="text" placeholder="User">
+                            </div>
                         </div>
-
                         <div class="form-group">
-                           <label class="col-sm-2 control-label">Password:</label>
-
-                           <div class="col-sm-10">
-                           <input class="form-control" type="password" placeholder="Password">
-                           </div>
+                            <label class="col-sm-2 control-label">Password:</label>
+                            <div class="col-sm-10">
+                                <input id="user_pass" class="form-control" 
+                                    type="password" placeholder="Password">
+                            </div>
                         </div>
-
                         <div class="form-group">
-                           <label class="col-sm-2 control-label">Password 2:</label>
-
-                           <div class="col-sm-10">
-                           <input class="form-control" type="password" placeholder="Password">
-                           </div>
+                            <label class="col-sm-2 control-label">Password 2:</label>
+                            <div class="col-sm-10">
+                                <input id="user_pass2" class="form-control" 
+                                    type="password" placeholder="Password">
+                            </div>
                         </div>
-
-                        <button class="btn btn-success">
-                        <span class="glyphicon glyphicon-plus"></span>
-                        Add
+                        <button class="btn btn-success" onclick="add_user()">
+                            <span class="glyphicon glyphicon-plus"></span> Add
                         </button>
                     </form>
                 </div>
@@ -150,20 +146,21 @@ $def with (packets, users, registered, port, ip, name)
                         <div class="form-group">
                             <label class="col-sm-2 control-label">Port:</label>
                             <div class="col-sm-10">
-                            <input id="port" class="form-control" type="number" value="$port">
+                                <input id="port" class="form-control" type="number" value="$port">
                             </div>
                         </div>
                         <div class="form-group">
-                           <label class="col-sm-2 control-label">IP:</label>
-                           <div class="col-sm-10">
-                           <input id="ip" class="form-control" type="text" value="$ip">
-                           </div>
+                            <label class="col-sm-2 control-label">IP:</label>
+                            <div class="col-sm-10">
+                                <input id="ip" class="form-control" type="text" value="$ip">
+                            </div>
                         </div>
                         <div class="form-group">
-                           <label class="col-sm-2 control-label">Server name:</label>
-                           <div class="col-sm-10">
-                           <input id="server_name" class="form-control" type="text" value="$name">
-                           </div>
+                            <label class="col-sm-2 control-label">Server name:</label>
+                            <div class="col-sm-10">
+                                <input id="server_name" class="form-control" 
+                                    type="text" value="$name">
+                            </div>
                         </div>
                     </form>
                     <button class="btn" onclick="send_config()">
@@ -174,17 +171,20 @@ $def with (packets, users, registered, port, ip, name)
         </div>
     </section>
 
-    <!-- Packets Section -->
-    <section id="packets" class="packets-section">
+    <!-- Log Section -->
+    <section id="log" class="log-section">
         <div class="container">
             <div class="row">
                 <div class="col-lg-12">
-                    <h1>Packets Section</h1>
-                    <textarea style="width:100%;height:800px" readonly>
-                        $packets
+                    <h1>Log Section</h1>
+                    <textarea id="log" style="width:100%;height:500px" readonly>
+                        $log
                     </textarea>
                 </div>
                 <div class="col-lg-12"><hr></div>
+                <button class="btn" onclick="get_log()">
+                    <span class="glyphicon glyphicon-refresh"></span> Refresh
+                </button>
             </div>
         </div>
     </section>
@@ -205,6 +205,18 @@ $def with (packets, users, registered, port, ip, name)
             port: $$('#port').val(),
             name: $$('#server_name').val(),
             ip: $$('#ip').val()
+        })
+    }
+    function delete_user(name) {$$.post("delete_user", { name: name})}
+    function add_user() {
+        $$.post("add_user", {
+            name: $$('#user_name').val(),
+            password: $$('#user_pass').val()
+        })
+    }
+    function get_log() {
+        $$.post("get_log", function(log) {
+            $$('#log').html(log)
         })
     }
     </script>

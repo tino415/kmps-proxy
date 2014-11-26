@@ -1,5 +1,5 @@
 #!/usr/bin/python
-import web, SIP, config, re
+import web, SIP, config, re, logging
 
 def delete_line(file_path, regex):
     pattern = re.compile(regex)
@@ -39,18 +39,17 @@ class PacketHandler:
     def add(self, packet):
         self.packets.append(packet)
         if len(self.packets) > self.packet_buff: self.packets.pop(0)
-    
+
     def __str__(self):
         return ''.join(str(packet) for packet in self.packets);
 
 
-print "Server started\n"
 class Index:
     """ Returns main page """
     def GET(self):
         global server
         return renderer.index(
-            packets = server.packet_handler,
+            log = ''.join(open("log.txt").readlines()),
             users = server.clients,
             registered = server.route,
             port = server.port,
@@ -72,6 +71,34 @@ class ChangeSettings:
         server.stop()
         server.start()
 
+class AddUser:
+    """ Add new user to sysstem """
+    def POST(self):
+        global server
+        params = web.input(name=None, password=None)
+        if params.name != None and params.password != None:
+            add_line_before(
+                "./config.py", 
+                re.compile( '.*\}.*'),
+                "    '{}' : '{}',\n".format(params.name, params.password))
+            server.clients[str(params.name)] = str(params.password)
+
+class DeleteUser:
+    """ Delete specified user """
+    def POST(self):
+        global server
+        params = web.input(name=None)
+        if params.name != None:
+            del server.clients[params.name]
+            if params.name in server.route:
+                del server.route[params.name]
+            delete_line("./config.py", re.compile(".*'{}' : .*".format(params.name)))
+
+class GetLog:
+    """ Return log to user """
+    def POST(self):
+        return ''.join(open("log.txt").readlines())
+
 class Resource:
     """ Return all resources that are not generated """
     def GET(self, res_type, res_name):
@@ -82,13 +109,15 @@ if __name__ == "__main__":
         '/', 'Index',
         '/(js|css|fonts)/(.+)', 'Resource',
         '/change_settings', 'ChangeSettings',
+        '/add_user', 'AddUser',
+        '/delete_user', 'DeleteUser',
+        '/get_log', 'GetLog',
     )
-    
+
     renderer = web.template.render('templates/')
-    
     app = web.application(urls, globals())
     packet_handler = PacketHandler(config.packet_buff)
-    
+
     server = SIP.Server(
         port = config.port,
         ip   = config.ip,

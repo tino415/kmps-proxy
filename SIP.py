@@ -6,8 +6,12 @@ via_pattern = re.compile(r"Via:.+")
 
 body_sepparator = re.compile(r"[\n]{2}")
 
+exp_pattern = re.compile(r"[ ]*0.*")
+
 RECEIVED = 0
 SENDED = 1
+
+logger = decorators.logger
 
 def parse_packet(data):
     packet = Packet(via = [], headers = {})
@@ -41,15 +45,10 @@ class Server:
 
     @decorators.start
     def start(self):
-        print "Thread running1"
         self.thread = threading.Thread(target = self.run)
-        print "Thread running2"
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        print "Thread running3"
         self.socket.bind((self.ip, int(self.port)))
-        print "Thread running4"
         self.thread.start()
-        print "Thread running5"
 
     def run(self):
         self.running = True
@@ -87,7 +86,7 @@ class Server:
 
         if self.auth(packet):
             if reg_pattern.match(packet.status):
-                self.register(packet)
+                self.registration(packet)
             elif inv_pattern.match(packet.status):
                 self.invite(packet)
             elif rin_pattern.match(packet.status):
@@ -130,6 +129,12 @@ class Server:
             self.ip
         )
         self.send(packet, self.route[packet.get_requested_client()])
+    
+    def max_forwards(self, packet):
+        max_forwards = int(packet.headers['Max-Forwards'].strip())
+        max_forwards-=1
+        packet.headers['Max-Forwards'] = str(max_forwards)
+        return True if max_forwards > 0 else False
 
     @decorators.auth
     def auth(self, packet):
@@ -153,20 +158,33 @@ class Server:
         else:
             return True
 
-    @decorators.register
-    def register(self, packet):
-        packet.status = "SIP/2.0 200 OK"
-
+    def registration(self, packet):
         if 'Authorization' in packet.headers:
             del packet.headers["Authorization"]
         if 'WWW-Authenticate' in packet.headers:
             del packet.headers['WWW-Authenticate']
 
+        if exp_pattern.match(packet.headers['Expires']):
+            self.unregister(packet)
+        else:
+            self.register(packet)
+
+    @decorators.register
+    def register(self, packet):
+        packet.status = "SIP/2.0 200 OK"
         self.route[packet.get_sending_client()] = packet.get_return_address()
+        self.send(packet, packet.get_return_address())
+
+    @decorators.unregister
+    def unregister(self, packet):
+        packet.status = "SIP/2.0 200 OK"
+        if packet.get_sending_client() in self.route:
+            del self.route[packet.get_sending_client()]
         self.send(packet, packet.get_return_address())
 
     @decorators.invite
     def invite(self, packet):
+        if not self.max_forwards(packet): return False
         target_user = packet.get_requested_client()
 
         if target_user in self.route:
@@ -182,10 +200,12 @@ class Server:
             self.send_not_found(packet)
 
     def ringing(self, packet):
+        if not self.max_forwards(packet): return False
         if self.valid_via(packet):
             self.send(packet, packet.get_return_address())
 
     def cancel(self, packet):
+        if not self.max_forwards(packet): return False
         target_user = packet.get_requested_client()
         sending_user = packet.get_sending_client()
 
@@ -199,15 +219,18 @@ class Server:
             self.send_not_found(packet)
 
     def decline(self, packet):
+        if not self.max_forwards(packet): return False
         if self.valid_via(packet):
             self.send(packet, packet.get_return_address())
             self.send_ack(packet)
 
     def answer(self, packet):
+        if not self.max_forwards(packet): return False
         if self.valid_via(packet):
             self.send(packet, packet.get_return_address())
 
     def bye(self, packet):
+        if not self.max_forwards(packet): return False
         target_user = packet.get_requested_client()
         if target_user in self.route:
             packet.status = "BYE sip:{}@{} SIP/2.0".format(

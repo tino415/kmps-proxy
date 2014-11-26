@@ -3,10 +3,14 @@ import re, logging
 logger = logging.getLogger('sip_proxy')
 logger.setLevel(logging.DEBUG)
 cli = logging.StreamHandler()
+fi = logging.FileHandler("log.txt")
 cli.setLevel(logging.DEBUG)
+fi.setLevel(logging.INFO)
 formatter = logging.Formatter("[%(asctime)s %(levelname)s] : %(message)s")
 cli.setFormatter(formatter)
+fi.setFormatter(formatter)
 logger.addHandler(cli)
+logger.addHandler(fi)
 
 def controll_message(function):
     def wrapper(*args, **kwargs):
@@ -56,6 +60,12 @@ def start(function):
 def register(function):
     def wrapper(*args, **kwargs):
         logger.info("Registering user {}\n".format(args[1].get_sending_client()))
+        function(*args, **kwargs)
+    return wrapper
+
+def unregister(function):
+    def wrapper(*args, **kwargs):
+        logger.info("Unregistering user {}\n".format(args[1].get_sending_client()))
         function(*args, **kwargs)
     return wrapper
 
